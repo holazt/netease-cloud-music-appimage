@@ -1,4 +1,7 @@
 ## netease-cloud-music-appimage
+[![Travis-ci](https://img.shields.io/travis/ZetaoYang/netease-cloud-music-appimage.svg?style=flat-square&label=Travis-ci)](https://travis-ci.org/ZetaoYang/netease-cloud-music-appimage)
+[![Total Downloads](https://img.shields.io/github/downloads/ZetaoYang/netease-cloud-music-appimage/total.svg?style=flat-square)](https://github.com/ZetaoYang/netease-cloud-music-appimage/releases)
+
 [netease-cloud-music](http://music.163.com) [AppImage](https://github.com/AppImage/AppImageKit) package
 
 ### Build
