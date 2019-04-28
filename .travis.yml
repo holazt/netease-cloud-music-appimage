@@ -31,8 +31,11 @@ install:
 
 script:
   - export ROOT_PATH="$(pwd)"
+  - chmod +x ${ROOT_PATH}/scripts/*.sh
+  - chmod +x ${ROOT_PATH}/scripts/services/*.sh
   - bash pkg2appimage-with-docker netease-cloud-music.yml
 
 after_success:
-  - cd ${ROOT_PATH}/out
-  - if [[ "${EXTEN}" == "appimage" ]]; then python3 ${ROOT_PATH}/scripts/services/transferwee.py upload NetEase_Cloud_Music-1.2.0.2.*.AppImage fi
+  - cp ${ROOT_PATH}/out/*.AppImage ${ROOT_PATH}/scripts/services
+  - if [[ "${EXTEN}" == "appimage" ]]; then source ${ROOT_PATH}/scripts/appimage_after_success.sh; fi
+  - echo $TEMP_DOWNLOAD_URL 
