@@ -24,4 +24,4 @@ chmod u+x NetEase_Cloud_Music-x86_64.AppImage
 
 ### NOTE
 
-This project docker scripts are based on  [netease-cloud-music-appimage](https://github.com/kelleg/netease-cloud-music-appimage) modification.
+This project docker scripts are based on  [netease-cloud-music-appimage](https://gitee.com/kelleg/netease-cloud-music-appimage) modification.
