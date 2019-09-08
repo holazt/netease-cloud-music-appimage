@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3
 
 #
 # Copyright (c) 2018-2019 Leonardo Taccari
@@ -260,25 +260,25 @@ def upload(files: List[str], message: str = '', sender: str = None,
     # Check that all files exists
     for f in files:
         if not os.path.exists(f):
-            return None
+            raise FileNotFoundError(f)
 
     # Check that there are no duplicates filenames
     # (despite possible different dirname())
     filenames = [os.path.basename(f) for f in files]
     if len(files) != len(set(filenames)):
-        return None
+        raise FileExistsError('Duplicate filenames')
 
     transfer_id = None
     if sender and recipients:
         # email upload
         transfer_id = \
-            _prepare_email_upload(filenames, message, sender, recipients)['id']
+            _prepare_email_upload(files, message, sender, recipients)['id']
     else:
         # link upload
-        transfer_id = _prepare_link_upload(filenames, message)['id']
+        transfer_id = _prepare_link_upload(files, message)['id']
 
     for f in files:
-        file_id = _prepare_file_upload(transfer_id, os.path.basename(f))['id']
+        file_id = _prepare_file_upload(transfer_id, f)['id']
         _upload_chunks(transfer_id, file_id, f)
 
     return _finalize_upload(transfer_id)['shortened_url']

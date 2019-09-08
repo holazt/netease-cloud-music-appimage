@@ -1,7 +1,7 @@
 # Beware: only meant for use with pkg2appimage-with-docker
 # Beware: only use for build netease-music-appimage
 
-FROM ubuntu:18.10
+FROM ubuntu:19.04
 
 MAINTAINER "kelleg <utengfei@foxmail.com>"
 
@@ -11,9 +11,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && \
     apt-get install -y apt-transport-https libcurl3-gnutls libarchive13 wget \
     ca-cacert appstream desktop-file-utils fuse gnupg2 build-essential file \
-    libglib2.0-dev libglib2.0-bin git && install -m 0777 -d /workspace
+    libglib2.0-dev libglib2.0-bin git libcups2 && install -m 0777 -d /workspace
 
-COPY docker/* /workspace/
+COPY workspace/* /workspace/
 RUN adduser --system --uid 1000 test
 
 WORKDIR /workspace

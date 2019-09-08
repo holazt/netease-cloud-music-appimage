@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/bash
 
 set -e
 
@@ -81,7 +81,7 @@ log "Building $RECIPE in a container..."
 
 randstr=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)
 containerid=appimage-build-$randstr
-imageid=appimage-build-netease-music
+imageid=appimage-build-$(id -u)
 
 log "Building Docker container"
 (set -xe; docker build -t $imageid .)
@@ -96,6 +96,8 @@ docker run -it \
     --security-opt apparmor:unconfined \
     --user $(id -u):$(id -g) \
     -v "$(readlink -f out):/workspace/out" \
+    -v "$(readlink -f pkg2appimage):/workspace/pkg2appimage:ro" \
+    -v "$(readlink -f $RECIPE):/workspace/$RECIPE:ro" \
     $ARGS \
     $imageid \
     ./pkg2appimage $RECIPE || cleanup error
