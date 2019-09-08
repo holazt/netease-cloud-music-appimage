@@ -3,10 +3,15 @@ binpatch: true
 
 ingredients:
   dist: deepin15.9
+  include:
+    - libc6
+    - libcups2
   sources: 
+    # - deb http://mirrors.163.com/deepin panda main contrib non-free # Faster mirror for China mainland
     - deb http://mirror.math.princeton.edu/pub/deepin panda main contrib non-free
   script:
     - VERSION=1.2.0.2
+    # - wget -c http://mirrors.163.com/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.2-1%2bstable_amd64.deb --trust-server-names # Faster mirror for China mainland
     - wget -c http://mirror.math.princeton.edu/pub/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.2-1+stable_amd64.deb --trust-server-names
     - echo $VERSION > VERSION
 

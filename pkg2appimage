@@ -2,6 +2,18 @@
 
 # env
 
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+# Use privately bundled apt-get and dpkg-deb if available; can be got on trusty using
+# apt download apt libapt-pkg4.12 libbz2-1.0 liblzma5 multiarch-support zlib1g dpkg
+if [ -e "${HERE}/libunionpreload.so" ] ; then
+  export UNION_PRELOAD="${HERE}"
+  export LD_PRELOAD="${HERE}/libunionpreload.so"
+  export PATH="${HERE}"/usr/bin/:"${HERE}"/usr/sbin/:"${HERE}"/usr/games/:"${HERE}"/bin/:"${HERE}"/sbin/:"${PATH}"
+  export LD_LIBRARY_PATH="${HERE}"/usr/lib/:"${HERE}"/usr/lib/i386-linux-gnu/:"${HERE}"/usr/lib/x86_64-linux-gnu/:"${HERE}"/usr/lib32/:"${HERE}"/usr/lib64/:"${HERE}"/lib/:"${HERE}"/lib/i386-linux-gnu/:"${HERE}"/lib/x86_64-linux-gnu/:"${HERE}"/lib32/:"${HERE}"/lib64/:"${LD_LIBRARY_PATH}"
+  export XDG_DATA_DIRS="${HERE}"/usr/share/:"${XDG_DATA_DIRS}"
+fi
+
 # Specify a certain commit if you do not want to use master
 # by using:
 # export PKG2AICOMMIT=<git sha>
@@ -9,27 +21,31 @@ if [ -z "$PKG2AICOMMIT" ] ; then
   PKG2AICOMMIT=master
 fi
 
-
 usage() {
+  if [ -z "$APPIMAGE" ]  ; then
+    MYSELF="$0"
+  else
+    MYSELF="$APPIMAGE"
+  fi
   echo "usage:"
-  echo "  $0 [--no-di] META-NAME|YAMLFILE"
+  echo "  $MYSELF [--no-di] META-NAME|YAMLFILE"
   echo ""
   echo "options:"
-  echo "  --no-di    disable desktop integration"
+  echo "  --di    enable legacy desktop integration (unsupported)"
   exit 1
 }
 
-if [ $# -eq 0 ] || [ "x${!#}" = "x--no-di" ] ; then
+if [ $# -eq 0 ] || [ "x${!#}" = "x--di" ] ; then
   usage
 fi
-if [ $# -eq 2 ] && [ "x$1" != "x--no-di" ] ; then
+if [ $# -eq 2 ] && [ "x$1" != "x--di" ] ; then
   usage
 fi
 
-if [ "x$1" = "x--no-di" ] ; then
-  ENABLE_DI="no"
-else
+if [ "x$1" = "x--di" ] ; then
   ENABLE_DI="yes"
+else
+  ENABLE_DI="no"
 fi
 
 # Halt on errors
@@ -121,10 +137,13 @@ if [ -d "./$APP.AppDir/" ] ; then
   rm -rf ./$APP.AppDir/
 fi
 
-# Source a user-provided functions.sh if the environment
+# Source the bundled functions.sh if it exists
+# in "${HERE}/usr/share/pkg2appimage/functions.sh"
+# or source a user-provided functions.sh if the environment
 # variable FUNCTIONS_SH was set and the file exists
-if [ -z "$FUNCTIONS_SH" ] ; then
-  cp ../functions.sh .
+if [ -e "${HERE}/usr/share/pkg2appimage/functions.sh" ] ; then
+  . "${HERE}/usr/share/pkg2appimage/functions.sh"
+elif [ -z "$FUNCTIONS_SH" ] ; then
   if [ ! -e functions.sh ] ; then
     wget -q https://github.com/AppImage/AppImages/raw/${PKG2AICOMMIT}/functions.sh -O ./functions.sh
   fi
@@ -211,7 +230,7 @@ if [ ! -z "${_ingredients_dist}" ] ; then
   # Use gnutls-patched to have libgnutls look in various distributions' places for certificates,
   # https://github.com/darealshinji/vlc-AppImage/issues/1#issuecomment-321041496
   # echo "deb http://ppa.launchpad.net/djcj/gnutls-patched/ubuntu ${_ingredients_dist} main" >> sources.list
-  echo "deb http://ppa.launchpad.net/djcj/gnutls-patched/ubuntu trusty main" >> sources.list
+  ### echo "deb http://ppa.launchpad.net/djcj/gnutls-patched/ubuntu trusty main" >> sources.list # https://github.com/AppImage/pkg2appimage/issues/345
 fi
 
 if [ ! -z "${_ingredients_script[0]}" ] ; then
@@ -248,7 +267,7 @@ if [ ! -z "${_ingredients_dist}" ] ; then
   fi
 
   apt-get -o Acquire::AllowInsecureRepositories=true -o Acquire::Languages="none" -o Acquire::AllowDowngradeToInsecureRepositories=true $OPTIONS update || true
-  URLS=$(apt-get --allow-unauthenticated -o Apt::Get::AllowUnauthenticated=true $OPTIONS -y install --print-uris $INSTALL | cut -d "'" -f 2 | grep -e "^http")
+  URLS=$(apt-get --allow-unauthenticated -o Apt::Get::AllowUnauthenticated=true $OPTIONS -y install --print-uris $INSTALL | cut -d "'" -f 2 | grep -e "^http") || true
   if which aria2c &>/dev/null; then
     dltool=aria2c
   else
@@ -267,7 +286,9 @@ mkdir -p ./$APP.AppDir/
 cd ./$APP.AppDir/
 
 mkdir -p usr/bin usr/lib
-find ../*.deb -exec dpkg -x {} . \; || true
+find ../*.deb -exec dpkg-deb -X {} . \; || true
+
+unset LD_PRELOAD
 
 # Try to copy icons to standard locations where appimaged can pick them up
 mkdir -p usr/share/icons/hicolor/{22x22,24x24,32x32,48x48,64x64,128x128,256x256,512x512}/apps/
@@ -299,7 +320,7 @@ export PERLLIB="${HERE}"/usr/share/perl5/:"${HERE}"/usr/lib/perl5/:"${PERLLIB}"
 export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
 export QT_PLUGIN_PATH="${HERE}"/usr/lib/qt4/plugins/:"${HERE}"/usr/lib/i386-linux-gnu/qt4/plugins/:"${HERE}"/usr/lib/x86_64-linux-gnu/qt4/plugins/:"${HERE}"/usr/lib32/qt4/plugins/:"${HERE}"/usr/lib64/qt4/plugins/:"${HERE}"/usr/lib/qt5/plugins/:"${HERE}"/usr/lib/i386-linux-gnu/qt5/plugins/:"${HERE}"/usr/lib/x86_64-linux-gnu/qt5/plugins/:"${HERE}"/usr/lib32/qt5/plugins/:"${HERE}"/usr/lib64/qt5/plugins/:"${QT_PLUGIN_PATH}"
 EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2- | sed -e 's|%.||g')
-exec ${EXEC} $@
+exec ${EXEC} "$@"
 EOF
 chmod a+x AppRun
 fi
@@ -328,13 +349,15 @@ if [ -e usr/lib/mono ] ; then
   find . -name "*.dll.config" -exec cat {} > temp \;
   # Remove all absolute paths
   sed -i -E 's|target=\"\/(.*\/)([a-z0-9].*?)>|target=\"\2>|g' temp
-  SONAMES=$(cat temp | cut -d '"' -f 4  | grep ".so")
-  for SONAME in $SONAMES; do
-    find . -name "$SONAME" -exec mv {} usr/lib \;
-  done
+  SONAMES=$(cat temp | cut -d '"' -f 4  | grep ".so" || true)
+  if [ "" != "$SONAMES" ] ; then
+    for SONAME in $SONAMES; do
+      find . -name "$SONAME" -exec mv {} usr/lib \;
+    done
+  fi
   rm temp
   PATH_OF_THE_EXE="usr/lib/mono/exe"
-  mkdir -p "PATH_OF_THE_EXE"
+  mkdir -p "$PATH_OF_THE_EXE"
   # Force all dll files into PATH_OF_THE_EXE (or MONO_PATH which we would have to set)
   find . -name "*.dll" -and -not -name "mscorlib.dll" -exec mv {} "$PATH_OF_THE_EXE" \;
   # Edit all config files in place to remove absolute paths
@@ -434,8 +457,8 @@ sed -i -e 's|\.xpm||g' *.desktop || true
 # done
 
 # Execute extra steps defined in recipe
-if [ ! -z "${_post}" ] ; then
-  shell_execute $YAMLFILE _post
+if [ ! -z "${_post_script[0]}" ] ; then
+  shell_execute $YAMLFILE _post_script
 fi
 
 # Go out of AppImage
