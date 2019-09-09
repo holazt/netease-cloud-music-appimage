@@ -2,18 +2,24 @@ app: netease-cloud-music
 binpatch: true
 
 ingredients:
-  dist: deepin15.9
-  include:
-    - libc6
-    - libcups2
+  dist: stretch
   sources: 
     # - deb http://mirrors.163.com/deepin panda main contrib non-free # Faster mirror for China mainland
     - deb http://mirror.math.princeton.edu/pub/deepin panda main contrib non-free
+  pretend:
+    - netease-cloud-music 1.2.0.2-1+bstable
+    - libcups2 2.2.1-8+deb9u3
+    # - libc6 2.24-11+bdeb9u4
+  packages:
+    - netease-cloud-music
+    - libcups2
+    # - libc6
   script:
-    - VERSION=1.2.0.2
+    # - VERSION=1.2.0.2
+    # - wget -c http://d1.music.126.net/dmusic/netease-cloud-music_1.2.1_amd64_ubuntu_20190428.deb --trust-server-names
     # - wget -c http://mirrors.163.com/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.2-1%2bstable_amd64.deb --trust-server-names # Faster mirror for China mainland
-    - wget -c http://mirror.math.princeton.edu/pub/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.2-1+stable_amd64.deb --trust-server-names
-    - echo $VERSION > VERSION
+    # - wget -c http://mirror.math.princeton.edu/pub/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.2-1+stable_amd64.deb --trust-server-names
+    # - echo $VERSION > VERSION
 
 script: 
   - cp usr/share/icons/hicolor/scalable/apps/netease-cloud-music.svg .
