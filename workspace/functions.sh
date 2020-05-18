@@ -120,10 +120,20 @@ delete_blacklisted()
 {
   BLACKLISTED_FILES=$(cat_file_from_url https://github.com/AppImage/pkg2appimage/raw/${PKG2AICOMMIT}/excludelist | sed 's|#.*||g')
   echo $BLACKLISTED_FILES
+
+  local DOT_DIR=$(readlink -f .)
+  local TARGET
   for FILE in $BLACKLISTED_FILES ; do
     FILES="$(find . -name "${FILE}" -not -path "./usr/optional/*")"
     for FOUND in $FILES ; do
-      rm -vf "$FOUND" "$(readlink -f "$FOUND")"
+      TARGET=$(readlink -f "$FOUND")
+
+      # Only delete files from inside the current dir.
+      if [[ $TARGET = $DOT_DIR/* ]]; then
+        rm -vf "$TARGET"
+      fi
+
+      rm -vf "$FOUND"
     done
   done
 
@@ -266,7 +276,7 @@ generate_status()
     EXCLUDEDEBLIST=excludedeblist
   fi
   rm status 2>/dev/null || true
-  for PACKAGE in $(cat excludedeblist | cut -d "#" -f 1) ; do
+  for PACKAGE in $(cat "$EXCLUDEDEBLIST" | cut -d "#" -f 1) ; do
     printf "Package: $PACKAGE\nStatus: install ok installed\nArchitecture: all\nVersion: 9:999.999.999\n\n" >> status
   done
 }
@@ -348,4 +358,3 @@ patch_strings_in_file() {
         done
     fi
 }
-
