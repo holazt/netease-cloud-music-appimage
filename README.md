@@ -50,6 +50,29 @@ chmod u+x NetEase_Cloud_Music-*.AppImage
 ./NetEase_Cloud_Music-*.AppImage
 ```
 
+### HiDPI (High Dots Per Inch)
+```bash
+cp NetEase_Cloud_Music-*.AppImage /usr/local/bin/netease-cloud-music
+
+cat > netease-cloud-music-hidpi.sh <<EOF
+#! /bin/bash
+
+# for Qt applications, reset pixel ratio to 2.
+export QT_AUTO_SCREEN_SCALE_FACTOR=2
+# and force scale factor to 2.
+
+if [ -e /usr/local/bin/netease-cloud-music ] ; then
+	exec /usr/local/bin/netease-cloud-music
+else
+	exec netease-cloud-music
+fi
+EOF
+
+chmod u+x netease-cloud-music-hidpi.sh
+
+./netease-cloud-music-hidpi.sh
+```
+
 ### Deepin Mirror
 
 - http://mirrors.163.com/deepin/
