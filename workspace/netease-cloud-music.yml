@@ -9,10 +9,12 @@ ingredients:
   pretend:
     - netease-cloud-music 1.2.0.2-1+bstable
     - libcups2 2.2.1-8+deb9u3
+    - fcitx-frontend-qt5 1.2.2-2deepin
     # - libc6 2.24-11+bdeb9u4
   packages:
     - netease-cloud-music
     - libcups2
+    - fcitx-frontend-qt5
     # - libc6
   script:
     # - VERSION=1.2.0.2
