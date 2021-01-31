@@ -28,3 +28,4 @@ script:
   # current directory: /worker/netease-cloud-music/netease-cloud-music.AppDir
   - cp ../../workspace/netease-cloud-music.png .
   - cp ../../workspace/netease-cloud-music.desktop .
+  - rm -rf ./lib/x86_64-linux-gnu/libselinux.so.1
