@@ -8,7 +8,7 @@ Comment=NetEase Cloud Music
 Comment[zh_CN]=网易云音乐
 Comment[zh_TW]=網易雲音樂
 Icon=netease-cloud-music
-Exec=env XDG_CURRENT_DESKTOP=DDE netease-cloud-music-hidpi %U
+Exec=netease-cloud-music %U
 Categories=AudioVideo;Player;
 Terminal=false
 StartupNotify=true
