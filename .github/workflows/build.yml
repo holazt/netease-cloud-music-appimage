@@ -1,0 +1,80 @@
+name: netease-cloud-music Appimage Build(x86_64)
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  repository_dispatch:
+    types: netease-cloud-music-appimage-build
+
+env:
+  PRODUCT: netease-cloud-music
+
+jobs:
+  appimage-pack:
+    name: appimage
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Source code
+        if: github.event_name == 'push'
+        uses: actions/checkout@v2
+        with: 
+          fetch-depth: 0
+
+      - name: Checkout Source code
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: addnab/docker-run-action@v1
+        with:
+          image: ubuntu:18.04
+          options: -v /home/runner/work/netease-cloud-music-appimage/netease-cloud-music-appimage:/worker --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined
+          run: |
+            echo "-------Install dependencies-------"
+
+            apt-get -y -qq update
+            apt-get -y --no-install-recommends install \
+              apt-transport-https \
+              libcurl3-gnutls \
+              libarchive13 \
+              wget \
+              ca-cacert \
+              appstream \
+              desktop-file-utils \
+              fuse \
+              gnupg2 \
+              build-essential \
+              file \
+              imagemagick \
+              libglib2.0-dev \
+              libglib2.0-bin \
+              git
+
+            echo "-------Get pkg2appimage tool-------"
+            cd /worker
+            wget -c https://github.com/$(wget -q https://github.com/AppImage/pkg2appimage/releases -O - \
+            | grep "pkg2appimage-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2) -O pkg2appimage
+            
+            echo "-------Prepare for building-------"
+            chmod +x pkg2appimage
+            chmod +x /worker/scripts/services/*.sh
+
+            echo "-------Build-------"
+            /worker/pkg2appimage /worker/workspace/netease-cloud-music.yml
+          
+
+      - name: Upload AppImage
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/build/dist
+          cp $GITHUB_WORKSPACE/out/*.AppImage $GITHUB_WORKSPACE/build/dist
+          bash $GITHUB_WORKSPACE/scripts/services/wetransfer.com.sh $GITHUB_WORKSPACE/build/dist/NetEase_Cloud_Music-*.*.AppImage
+
+      - name: Artifact 
+        uses: actions/upload-artifact@v2
+        with:
+          name: Artifact
+          path: $GITHUB_WORKSPACE/build/dist/*.AppImage
