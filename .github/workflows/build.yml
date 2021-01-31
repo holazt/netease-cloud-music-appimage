@@ -2,9 +2,9 @@ name: netease-cloud-music Appimage Build(x86_64)
 
 on:
   push:
-    branches: [master]
+    branches: [dev]
   pull_request:
-    branches: [master]
+    branches: [dev]
   repository_dispatch:
     types: netease-cloud-music-appimage-build
 
@@ -35,7 +35,6 @@ jobs:
           options: -v /home/runner/work/netease-cloud-music-appimage/netease-cloud-music-appimage:/worker --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined
           run: |
             echo "-------Install dependencies-------"
-
             apt-get -y -qq update
             apt-get -y --no-install-recommends install \
               apt-transport-https \
@@ -58,23 +57,73 @@ jobs:
             cd /worker
             wget -c https://github.com/$(wget -q https://github.com/AppImage/pkg2appimage/releases -O - \
             | grep "pkg2appimage-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2) -O pkg2appimage
+
+            echo "-------Get appimagetool tool-------"
+            wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+            chmod +x appimagetool
             
             echo "-------Prepare for building-------"
             chmod +x pkg2appimage
             chmod +x /worker/scripts/services/*.sh
 
-            echo "-------Build-------"
+            echo "-------Build AppImage(original)-------"
             /worker/pkg2appimage /worker/workspace/netease-cloud-music.yml
-          
+            mkdir -p /worker/build/dist
+            cp /worker/out/*.AppImage /worker/build/dist
 
-      - name: Upload AppImage
+            echo "------Prepare for vlc-patch-------"
+            sed -i -- 's/#deb-src/deb-src/g' /etc/apt/sources.list && \
+            sed -i -- 's/# deb-src/deb-src/g' /etc/apt/sources.list
+            apt-get -y -qq update
+            apt-get -y build-dep vlc
+            apt-get -y --no-install-recommends install \
+              pkg-config \
+              libtool \
+              automake \
+              autopoint \
+              gettext \
+
+            echo "------Build vlc-patch-------"
+            mkdir -p /worker/vlc-patch
+            wget -c http://get.videolan.org/vlc/3.0.11/vlc-3.0.11.tar.xz --trust-server-names
+            tar -vxf vlc-3.0.11.tar.xz
+            cd vlc-3.0.11
+            patch -p1 < /worker/workspace/ncm-vlc.patch
+            ./configure  \
+              --prefix=/usr  \
+              --disable-rpath \
+              --enable-mpg123 \
+              --enable-flac \
+              --enable-libmpeg2 \
+              --disable-avcodec \
+              --disable-swscale \
+              --disable-a52
+            make -j$(nproc)
+            make DESTDIR=/worker/vlc-patch install
+            cd /worker
+            tar -czvf vlc-patch.tar.gz /worker/vlc-patch
+
+            echo "------Build AppImage(vlc-patch)-------"
+            mkdir -p /worker/appimage-patch
+            cd /worker/appimage-patch
+            /worker/build/dist/NetEase_Cloud_Music-*.*-x86_64.AppImage --appimage-extract
+            mv squashfs-root netease-cloud-music.AppDir
+            rm -rf /worker/appimage-patch/netease-cloud-music.AppDir/usr/lib/x86_64-linux-gnu/vlc
+            cp -r /worker/vlc-patch/usr/lib/vlc /worker/appimage-patch/netease-cloud-music.AppDir/usr/lib/x86_64-linux-gnu
+            /worker/appimagetool netease-cloud-music.AppDir
+
+      - name: Upload AppImage(vlc-patch)
         run: |
-          mkdir -p $GITHUB_WORKSPACE/build/dist
-          cp $GITHUB_WORKSPACE/out/*.AppImage $GITHUB_WORKSPACE/build/dist
+          bash $GITHUB_WORKSPACE/scripts/services/wetransfer.com.sh $GITHUB_WORKSPACE/appimage-patch/*.AppImage
+
+      - name: Upload AppImage(original)
+        run: |
           bash $GITHUB_WORKSPACE/scripts/services/wetransfer.com.sh $GITHUB_WORKSPACE/build/dist/NetEase_Cloud_Music-*.*.AppImage
 
       - name: Artifact 
         uses: actions/upload-artifact@v2
         with:
           name: Artifact
-          path: $GITHUB_WORKSPACE/build/dist/*.AppImage
+          path: |
+            $GITHUB_WORKSPACE/build/dist/*.AppImage
+            $GITHUB_WORKSPACE/appimage-patch/*.AppImage

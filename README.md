@@ -1,5 +1,5 @@
 ## netease-cloud-music-appimage
-[![Actions](https://img.shields.io/github/workflow/status/ZetaoYang/netease-cloud-music-appimage/netease-cloud-music%20Appimage%20Build(x86_64)?label=Actions)](https://github.com/ZetaoYang/netease-cloud-music-appimage/actions)
+[![Travis-ci](https://img.shields.io/travis/ZetaoYang/netease-cloud-music-appimage.svg?style=flat-square&label=Travis-ci)](https://travis-ci.org/ZetaoYang/netease-cloud-music-appimage)
 [![Total Downloads](https://img.shields.io/github/downloads/ZetaoYang/netease-cloud-music-appimage/total.svg?style=flat-square)](https://github.com/ZetaoYang/netease-cloud-music-appimage/releases)
 
 [netease-cloud-music](http://music.163.com) [AppImage](https://github.com/AppImage/AppImageKit) package
@@ -11,7 +11,7 @@
 ### Build
 
 ```bash
-pkg2appimage netease-cloud-music.yml
+bash pkg2appimage-with-docker netease-cloud-music.yml
 ```
 
 ### Usage  1
@@ -75,9 +75,8 @@ chmod u+x netease-cloud-music-hidpi.sh
 
 ### Deepin Mirror
 
-- http://mirrors.kernel.org/deepin/
-- http://mirror.math.princeton.edu/pub/deepin/
 - http://mirrors.163.com/deepin/
+- http://mirror.math.princeton.edu/pub/deepin/
 
 ### Note
 
