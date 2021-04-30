@@ -38,7 +38,7 @@ EOF
 
 cp netease-cloud-music.desktop /usr/share/applications/
 cp NetEase_Cloud_Music-*.AppImage /usr/local/bin/netease-cloud-music
-chmod u+x /usr/local/bin/netease-cloud-music
+chmod a+x /usr/local/bin/netease-cloud-music
 
 netease-cloud-music
 ```
@@ -89,5 +89,13 @@ chmod u+x netease-cloud-music-hidpi.sh
    Patch VLC to make the Content-Type of flac network files/streams always be "audio/flac" to "fix" the problem that VLC fails to recognize the flac network files correctly due to the Content-Type of "audio/mpeg" obtained by NetEase Cloud Music for Linux. 
    ```
 
-   
+### Troubleshooting
+
+Q1: netease-cloud-music: error while loading shared libraries: **libgtk-x11-2.0.so.0**: cannot open shared object file: No such file or directory
+
+A1: Try `dnf install gtk2` if you're using Fedora.
+
+Q2: netease-cloud-music: error while loading shared libraries: **libnsl.so.1**: cannot open shared object file: No such file or directory
+
+A2: Try `dnf install libnsl` if you're using Fedora.
 
