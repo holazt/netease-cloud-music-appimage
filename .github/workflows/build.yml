@@ -162,10 +162,16 @@ jobs:
         run: |
           bash $GITHUB_WORKSPACE/scripts/services/wetransfer.com.sh $GITHUB_WORKSPACE/build/dist/NetEase_Cloud_Music-*.*.AppImage
 
-      - name: Artifact 
+      - name: Artifact(vlc with patch)
         uses: actions/upload-artifact@v2
         with:
-          name: Artifact
+          name: Artifact-vlc-patch
+          path: |
+            ${{ github.workspace }}/appimage-patch/*.AppImage
+
+      - name: Artifact(original)
+        uses: actions/upload-artifact@v2
+        with:
+          name: Artifact-original
           path: |
             ${{ github.workspace }}/build/dist/*.AppImage
-            ${{ github.workspace }}/appimage-patch/*.AppImage
