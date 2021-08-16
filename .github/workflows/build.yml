@@ -10,11 +10,33 @@ on:
 
 env:
   PRODUCT: netease-cloud-music
+  VLC_VERSION: 3.0.16
 
 jobs:
   appimage-pack:
-    name: appimage
+    name: build appimage on ${{ matrix.config.name }}-${{ matrix.config.arch }}
     runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+              name: ubuntu-18.04,
+              os: ubuntu,
+              symbol: bionic,
+              arch: amd64,
+              image_repo: ubuntu
+            }
+          # - {
+          #     name: debian-11,
+          #     os: debian,
+          #     symbol: bullseye,
+          #     arch: amd64,
+          #     image_repo: debian
+          #   }
+    container:
+      image: ${{ matrix.config.image_repo }}:${{ matrix.config.symbol }}
+      options: -v ${{ github.workspace }}:/worker --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined
     steps:
       - name: Checkout Source code
         if: github.event_name == 'push'
@@ -29,90 +51,110 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: addnab/docker-run-action@v1
-        with:
-          image: ubuntu:18.04
-          options: -v /home/runner/work/netease-cloud-music-appimage/netease-cloud-music-appimage:/worker --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined
-          run: |
-            echo "-------Install dependencies-------"
-            apt-get -y -qq update
-            apt-get -y --no-install-recommends install \
-              apt-transport-https \
-              libcurl3-gnutls \
-              libarchive13 \
-              wget \
-              ca-cacert \
-              appstream \
-              desktop-file-utils \
-              fuse \
-              gnupg2 \
-              build-essential \
-              file \
-              imagemagick \
-              libglib2.0-dev \
-              libglib2.0-bin \
-              git
+      - name: Install dependencies
+        shell: bash
+        run: |
+          apt-get -y -qq update
+          apt-get -y --no-install-recommends install \
+            apt-transport-https \
+            libcurl3-gnutls \
+            libarchive13 \
+            wget \
+            ca-cacert \
+            appstream \
+            desktop-file-utils \
+            fuse \
+            gnupg2 \
+            build-essential \
+            file \
+            imagemagick \
+            libglib2.0-dev \
+            libglib2.0-bin \
+            git \
+            python3 \
+            python3-pip
 
-            echo "-------Get pkg2appimage tool-------"
-            cd /worker
-            wget -c https://github.com/$(wget -q https://github.com/AppImage/pkg2appimage/releases -O - \
+      - name: Get pkg2appimage tool
+        shell: bash
+        run: |
+          cd /worker
+          wget -c https://github.com/$(wget -q https://github.com/AppImage/pkg2appimage/releases -O - \
             | grep "pkg2appimage-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2) -O pkg2appimage
 
-            echo "-------Get appimagetool tool-------"
-            wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
-            chmod +x appimagetool
-            
-            echo "-------Prepare for building-------"
-            chmod +x pkg2appimage
-            chmod +x /worker/scripts/services/*.sh
+      - name: Get appimagetool tool
+        shell: bash
+        run: |
+          cd /worker
+          wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          chmod +x appimagetool
 
-            echo "-------Build AppImage(original)-------"
-            /worker/pkg2appimage /worker/workspace/netease-cloud-music.yml
-            mkdir -p /worker/build/dist
-            cp /worker/out/*.AppImage /worker/build/dist
+      - name: Prepare for building
+        shell: bash
+        run: |
+          chmod +x pkg2appimage
+          chmod +x /worker/scripts/services/*.sh
 
-            echo "------Prepare for vlc-patch-------"
-            sed -i -- 's/#deb-src/deb-src/g' /etc/apt/sources.list && \
-            sed -i -- 's/# deb-src/deb-src/g' /etc/apt/sources.list
-            apt-get -y -qq update
-            apt-get -y build-dep vlc
-            apt-get -y --no-install-recommends install \
-              pkg-config \
-              libtool \
-              automake \
-              autopoint \
-              gettext \
+      - name: Build AppImage(original)
+        shell: bash
+        run: |
+          /worker/pkg2appimage /worker/workspace/netease-cloud-music.yml
+          mkdir -p /worker/build/dist
+          cp /worker/out/*.AppImage /worker/build/dist
 
-            echo "------Build vlc-patch-------"
-            mkdir -p /worker/vlc-patch
-            wget -c http://get.videolan.org/vlc/3.0.12/vlc-3.0.12.tar.xz --trust-server-names
-            tar -vxf vlc-3.0.12.tar.xz
-            cd vlc-3.0.12
-            patch -p1 < /worker/workspace/ncm-vlc.patch
-            ./configure  \
-              --prefix=/usr  \
-              --disable-rpath \
-              --enable-mpg123 \
-              --enable-flac \
-              --enable-libmpeg2 \
-              --disable-avcodec \
-              --disable-swscale \
-              --disable-a52
-            make -j$(nproc)
-            make DESTDIR=/worker/vlc-patch install
-            cd /worker
-            tar -czvf vlc-patch.tar.gz /worker/vlc-patch
+      - name: Prepare for vlc build
+        shell: bash
+        run: |
+          sed -i -- 's/#deb-src/deb-src/g' /etc/apt/sources.list
+          sed -i -- 's/# deb-src/deb-src/g' /etc/apt/sources.list
+          apt-get -y -qq update
+          apt-get -y build-dep vlc
+          apt-get -y --no-install-recommends install \
+            pkg-config \
+            libtool \
+            automake \
+            autopoint \
+            gettext
 
-            echo "------Build AppImage(vlc-patch)-------"
-            mkdir -p /worker/appimage-patch
-            cd /worker/appimage-patch
-            /worker/build/dist/NetEase_Cloud_Music-*.*-x86_64.AppImage --appimage-extract
-            mv squashfs-root netease-cloud-music.AppDir
-            rm -rf /worker/appimage-patch/netease-cloud-music.AppDir/usr/lib/x86_64-linux-gnu/vlc
-            cp -r /worker/vlc-patch/usr/lib/vlc /worker/appimage-patch/netease-cloud-music.AppDir/usr/lib/x86_64-linux-gnu
-            /worker/appimagetool netease-cloud-music.AppDir
+          mkdir -p /worker/vlc-patch
+          wget -c https://get.videolan.org/vlc/${{ env.VLC_VERSION }}/vlc-${{ env.VLC_VERSION }}.tar.xz
+          tar -vxf vlc-${{ env.VLC_VERSION }}.tar.xz
 
-      - name: Upload AppImage(vlc-patch)
+      - name: Patch vlc
+        shell: bash
+        run: |
+          cd vlc-${{ env.VLC_VERSION }}
+          patch -p1 < /worker/workspace/ncm-vlc.patch
+
+      - name: Build vlc with patch
+        shell: bash
+        run: |
+          cd vlc-${{ env.VLC_VERSION }}
+          ./configure  \
+            --prefix=/usr  \
+            --disable-rpath \
+            --enable-mpg123 \
+            --enable-flac \
+            --enable-libmpeg2 \
+            --disable-avcodec \
+            --disable-swscale \
+            --disable-a52
+          make -j$(nproc)
+          make DESTDIR=/worker/vlc-patch install
+          cd /worker
+          tar -czvf vlc-patch.tar.gz /worker/vlc-patch
+
+      - name: Build AppImage(vlc with patch)
+        shell: bash
+        run: |
+          mkdir -p /worker/appimage-patch
+          cd /worker/appimage-patch
+          /worker/build/dist/NetEase_Cloud_Music-*.*-x86_64.AppImage --appimage-extract
+          mv squashfs-root netease-cloud-music.AppDir
+          rm -rf /worker/appimage-patch/netease-cloud-music.AppDir/usr/lib/x86_64-linux-gnu/vlc
+          cp -r /worker/vlc-patch/usr/lib/vlc /worker/appimage-patch/netease-cloud-music.AppDir/usr/lib/x86_64-linux-gnu
+          /worker/appimagetool netease-cloud-music.AppDir
+
+      - name: Upload AppImage(vlc with patch)
         run: |
           bash $GITHUB_WORKSPACE/scripts/services/wetransfer.com.sh $GITHUB_WORKSPACE/appimage-patch/*.AppImage
 
