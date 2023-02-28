@@ -10,43 +10,36 @@ on:
 
 env:
   PRODUCT: netease-cloud-music
-  VLC_VERSION: 3.0.16
+  VLC_VERSION: 3.0.18
 
 jobs:
   appimage-pack:
     name: build appimage on ${{ matrix.config.name }}-${{ matrix.config.arch }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         config:
           - {
-              name: ubuntu-18.04,
+              name: ubuntu-22.04,
               os: ubuntu,
-              symbol: bionic,
+              symbol: jammy,
               arch: amd64,
               image_repo: ubuntu
             }
-          # - {
-          #     name: debian-11,
-          #     os: debian,
-          #     symbol: bullseye,
-          #     arch: amd64,
-          #     image_repo: debian
-          #   }
     container:
       image: ${{ matrix.config.image_repo }}:${{ matrix.config.symbol }}
       options: -v ${{ github.workspace }}:/worker --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined
     steps:
       - name: Checkout Source code
         if: github.event_name == 'push'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with: 
           fetch-depth: 0
 
       - name: Checkout Source code
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -73,34 +66,28 @@ jobs:
             git \
             python3 \
             python3-pip
-
       - name: Get pkg2appimage tool
         shell: bash
         run: |
           cd /worker
-          wget -c https://github.com/$(wget -q https://github.com/AppImage/pkg2appimage/releases -O - \
-            | grep "pkg2appimage-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2) -O pkg2appimage
-
+          wget -c https://github.com/AppImageCommunity/pkg2appimage/releases/download/continuous/pkg2appimage-1807-x86_64.AppImage -O pkg2appimage
       - name: Get appimagetool tool
         shell: bash
         run: |
           cd /worker
-          wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          wget -c https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
-
       - name: Prepare for building
         shell: bash
         run: |
           chmod +x pkg2appimage
           chmod +x /worker/scripts/services/*.sh
-
       - name: Build AppImage(original)
         shell: bash
         run: |
           /worker/pkg2appimage /worker/workspace/netease-cloud-music.yml
           mkdir -p /worker/build/dist
           cp /worker/out/*.AppImage /worker/build/dist
-
       - name: Prepare for vlc build
         shell: bash
         run: |
@@ -114,17 +101,14 @@ jobs:
             automake \
             autopoint \
             gettext
-
           mkdir -p /worker/vlc-patch
           wget -c https://get.videolan.org/vlc/${{ env.VLC_VERSION }}/vlc-${{ env.VLC_VERSION }}.tar.xz
           tar -vxf vlc-${{ env.VLC_VERSION }}.tar.xz
-
       - name: Patch vlc
         shell: bash
         run: |
           cd vlc-${{ env.VLC_VERSION }}
           patch -p1 < /worker/workspace/ncm-vlc.patch
-
       - name: Build vlc with patch
         shell: bash
         run: |
@@ -142,7 +126,6 @@ jobs:
           make DESTDIR=/worker/vlc-patch install
           cd /worker
           tar -czvf vlc-patch.tar.gz /worker/vlc-patch
-
       - name: Build AppImage(vlc with patch)
         shell: bash
         run: |
@@ -153,24 +136,20 @@ jobs:
           rm -rf /worker/appimage-patch/netease-cloud-music.AppDir/usr/lib/x86_64-linux-gnu/vlc
           cp -r /worker/vlc-patch/usr/lib/vlc /worker/appimage-patch/netease-cloud-music.AppDir/usr/lib/x86_64-linux-gnu
           /worker/appimagetool netease-cloud-music.AppDir
-
       - name: Upload AppImage(vlc with patch)
         run: |
           bash $GITHUB_WORKSPACE/scripts/services/wetransfer.com.sh $GITHUB_WORKSPACE/appimage-patch/*.AppImage
-
       - name: Upload AppImage(original)
         run: |
           bash $GITHUB_WORKSPACE/scripts/services/wetransfer.com.sh $GITHUB_WORKSPACE/build/dist/NetEase_Cloud_Music-*.*.AppImage
-
       - name: Artifact(vlc with patch)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Artifact-vlc-patch
           path: |
             ${{ github.workspace }}/appimage-patch/*.AppImage
-
       - name: Artifact(original)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Artifact-original
           path: |
