@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (c) 2018-2021 Leonardo Taccari
+# Copyright (c) 2018-2023 Leonardo Taccari
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
 # are met:
-# 
+#
 # 1. Redistributions of source code must retain the above copyright
 #    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 # TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -38,7 +38,8 @@ files from a `we.tl' or `wetransfer.com/downloads' URLs and upload files that
 will be shared via emails or link.
 """
 
-from typing import List
+from typing import List, Optional
+import logging
 import os.path
 import re
 import urllib.parse
@@ -59,9 +60,13 @@ WETRANSFER_FINALIZE_URL = WETRANSFER_API_URL + '/{transfer_id}/finalize'
 
 WETRANSFER_DEFAULT_CHUNK_SIZE = 5242880
 WETRANSFER_EXPIRE_IN = 604800
+WETRANSFER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:102.0) Gecko/20100101 Firefox/102.0'
 
 
-def download_url(url: str) -> str:
+logger = logging.getLogger(__name__)
+
+
+def download_url(url: str) -> Optional[str]:
     """Given a wetransfer.com download URL download return the downloadable URL.
 
     The URL should be of the form `https://we.tl/' or
@@ -83,9 +88,12 @@ def download_url(url: str) -> str:
     Return the download URL (AKA `direct_link') as a str or None if the URL
     could not be parsed.
     """
+    logger.debug(f'Getting download URL of {url}')
     # Follow the redirect if we have a short URL
     if url.startswith('https://we.tl/'):
-        r = requests.head(url, allow_redirects=True)
+        r = requests.head(url, allow_redirects=True,
+                          headers={'User-Agent': WETRANSFER_USER_AGENT})
+        logger.debug(f'Short URL {url} redirects to {r.url}')
         url = r.url
 
     recipient_id = None
@@ -98,6 +106,7 @@ def download_url(url: str) -> str:
     else:
         return None
 
+    logger.debug(f'Getting direct_link of {url}')
     j = {
         "intent": "entire_transfer",
         "security_hash": security_hash,
@@ -105,8 +114,11 @@ def download_url(url: str) -> str:
     if recipient_id:
         j["recipient_id"] = recipient_id
     s = _prepare_session()
+    if not s:
+        raise ConnectionError('Could not prepare session')
     r = s.post(WETRANSFER_DOWNLOAD_URL.format(transfer_id=transfer_id),
                json=j)
+    _close_session(s)
 
     j = r.json()
     return j.get('direct_link')
@@ -129,11 +141,17 @@ def download(url: str, file: str = '') -> None:
     will be extracted to it and it will be fetched and stored on the current
     working directory.
     """
+    logger.debug(f'Downloading {url}')
     dl_url = download_url(url)
+    if not dl_url:
+        logger.error(f'Could not find direct link of {url}')
+        return None
     if not file:
         file = _file_unquote(urllib.parse.urlparse(dl_url).path.split('/')[-1])
 
-    r = requests.get(dl_url, stream=True)
+    logger.debug(f'Fetching {dl_url}')
+    r = requests.get(dl_url, headers={'User-Agent': WETRANSFER_USER_AGENT},
+                     stream=True)
     with open(file, 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024):
             f.write(chunk)
@@ -153,7 +171,7 @@ def _file_name_and_size(file: str) -> dict:
     }
 
 
-def _prepare_session() -> requests.Session:
+def _prepare_session() -> Optional[requests.Session]:
     """Prepare a wetransfer.com session.
 
     Return a requests session that will always pass the required headers
@@ -161,8 +179,12 @@ def _prepare_session() -> requests.Session:
     requests.
     """
     s = requests.Session()
+    s.headers.update({'User-Agent': WETRANSFER_USER_AGENT})
     r = s.get('https://wetransfer.com/')
     m = re.search('name="csrf-token" content="([^"]+)"', r.text)
+    if not m:
+        logger.error(f'Could not find any csrf-token')
+        return None
     s.headers.update({
         'x-csrf-token': m.group(1),
         'x-requested-with': 'XMLHttpRequest',
@@ -171,9 +193,17 @@ def _prepare_session() -> requests.Session:
     return s
 
 
-def _prepare_email_upload(filenames: List[str], message: str,
+def _close_session(s: requests.Session) -> None:
+    """Close a wetransfer.com session.
+
+    Terminate wetransfer.com session.
+    """
+    s.close()
+
+
+def _prepare_email_upload(filenames: List[str], display_name: str, message: str,
                           sender: str, recipients: List[str],
-                          session: requests.Session) -> str:
+                          session: requests.Session) -> dict:
     """Given a list of filenames, message a sender and recipients prepare for
     the email upload.
 
@@ -182,6 +212,7 @@ def _prepare_email_upload(filenames: List[str], message: str,
     j = {
         "files": [_file_name_and_size(f) for f in filenames],
         "from": sender,
+        "display_name": display_name,
         "message": message,
         "recipients": recipients,
         "ui_language": "en",
@@ -208,14 +239,15 @@ def _verify_email_upload(transfer_id: str, session: requests.Session) -> str:
     return r.json()
 
 
-def _prepare_link_upload(filenames: List[str], message: str,
-                         session: requests.Session) -> str:
+def _prepare_link_upload(filenames: List[str], display_name: str, message: str,
+                         session: requests.Session) -> dict:
     """Given a list of filenames and a message prepare for the link upload.
 
     Return the parsed JSON response.
     """
     j = {
         "files": [_file_name_and_size(f) for f in filenames],
+        "display_name": display_name,
         "message": message,
         "ui_language": "en",
     }
@@ -225,7 +257,7 @@ def _prepare_link_upload(filenames: List[str], message: str,
 
 
 def _prepare_file_upload(transfer_id: str, file: str,
-                         session: requests.Session) -> str:
+                         session: requests.Session) -> dict:
     """Given a transfer_id and file prepare it for the upload.
 
     Return the parsed JSON response.
@@ -243,34 +275,35 @@ def _upload_chunks(transfer_id: str, file_id: str, file: str,
 
     Return the parsed JSON response.
     """
-    f = open(file, 'rb')
+    with open(file, 'rb') as f:
+        chunk_number = 0
+        while True:
+            chunk = f.read(default_chunk_size)
+            chunk_size = len(chunk)
+            if chunk_size == 0:
+                break
+            chunk_number += 1
 
-    chunk_number = 0
-    while True:
-        chunk = f.read(default_chunk_size)
-        chunk_size = len(chunk)
-        if chunk_size == 0:
-            break
-        chunk_number += 1
+            j = {
+                "chunk_crc": zlib.crc32(chunk),
+                "chunk_number": chunk_number,
+                "chunk_size": chunk_size,
+                "retries": 0
+            }
 
-        j = {
-            "chunk_crc": zlib.crc32(chunk),
-            "chunk_number": chunk_number,
-            "chunk_size": chunk_size,
-            "retries": 0
-        }
-
-        r = session.post(
-            WETRANSFER_PART_PUT_URL.format(transfer_id=transfer_id,
-                                           file_id=file_id),
-            json=j)
-        url = r.json().get('url')
-        requests.options(url,
+            r = session.post(
+                WETRANSFER_PART_PUT_URL.format(transfer_id=transfer_id,
+                                               file_id=file_id),
+                json=j)
+            url = r.json().get('url')
+            requests.options(url,
                              headers={
                                  'Origin': 'https://wetransfer.com',
                                  'Access-Control-Request-Method': 'PUT',
+                                 'User-Agent': WETRANSFER_USER_AGENT,
                              })
-        requests.put(url, data=chunk)
+            requests.put(url, data=chunk,
+                         headers={'User-Agent': WETRANSFER_USER_AGENT})
 
     j = {
         'chunk_count': chunk_number
@@ -283,7 +316,7 @@ def _upload_chunks(transfer_id: str, file_id: str, file: str,
     return r.json()
 
 
-def _finalize_upload(transfer_id: str, session: requests.Session) -> str:
+def _finalize_upload(transfer_id: str, session: requests.Session) -> dict:
     """Given a transfer_id finalize the upload.
 
     Return the parsed JSON response.
@@ -293,11 +326,13 @@ def _finalize_upload(transfer_id: str, session: requests.Session) -> str:
     return r.json()
 
 
-def upload(files: List[str], message: str = '', sender: str = None,
-           recipients: List[str] = []) -> str:
+def upload(files: List[str], display_name: str = '', message: str = '',
+           sender: Optional[str] = None,
+           recipients: Optional[List[str]] = []) -> str:
     """Given a list of files upload them and return the corresponding URL.
 
     Also accepts optional parameters:
+     - `display_name': name used as a title of the transfer
      - `message': message used as a description of the transfer
      - `sender': email address used to receive an ACK if the upload is
                  successfull. For every download by the recipients an email
@@ -312,43 +347,57 @@ def upload(files: List[str], message: str = '', sender: str = None,
     """
 
     # Check that all files exists
+    logger.debug(f'Checking that all files exists')
     for f in files:
         if not os.path.exists(f):
             raise FileNotFoundError(f)
 
     # Check that there are no duplicates filenames
     # (despite possible different dirname())
+    logger.debug(f'Checking for no duplicate filenames')
     filenames = [os.path.basename(f) for f in files]
     if len(files) != len(set(filenames)):
         raise FileExistsError('Duplicate filenames')
 
+    logger.debug(f'Preparing to upload')
     transfer_id = None
     s = _prepare_session()
+    if not s:
+        raise ConnectionError('Could not prepare session')
     if sender and recipients:
         # email upload
         transfer_id = \
-            _prepare_email_upload(files, message, sender, recipients, s)['id']
+            _prepare_email_upload(files, display_name, message, sender, recipients, s)['id']
         _verify_email_upload(transfer_id, s)
     else:
         # link upload
-        transfer_id = _prepare_link_upload(files, message, s)['id']
+        transfer_id = _prepare_link_upload(files, display_name, message, s)['id']
 
+    logger.debug(f'Get transfer id {transfer_id}')
     for f in files:
+        logger.debug(f'Uploading {f} as part of transfer_id {transfer_id}')
         file_id = _prepare_file_upload(transfer_id, f, s)['id']
         _upload_chunks(transfer_id, file_id, f, s)
 
-    return _finalize_upload(transfer_id, s)['shortened_url']
+    logger.debug(f'Finalizing upload with transfer id {transfer_id}')
+    shortened_url = _finalize_upload(transfer_id, s)['shortened_url']
+    _close_session(s)
+    return shortened_url
 
 
 if __name__ == '__main__':
     from sys import exit
     import argparse
 
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
+    log.addHandler(logging.StreamHandler())
+
     ap = argparse.ArgumentParser(
         prog='transferwee',
         description='Download/upload files via wetransfer.com'
     )
-    sp = ap.add_subparsers(dest='action', help='action')
+    sp = ap.add_subparsers(dest='action', help='action', required=True)
 
     # download subcommand
     dp = sp.add_parser('download', help='download files')
@@ -356,20 +405,29 @@ if __name__ == '__main__':
                     help='only print the direct link (without downloading it)')
     dp.add_argument('-o', type=str, default='', metavar='file',
                     help='output file to be used')
+    dp.add_argument('-v', action='store_true',
+                    help='get verbose/debug logging')
     dp.add_argument('url', nargs='+', type=str, metavar='url',
                     help='URL (we.tl/... or wetransfer.com/downloads/...)')
 
     # upload subcommand
     up = sp.add_parser('upload', help='upload files')
+    up.add_argument('-n', type=str, default='', metavar='display_name',
+                    help='title for the transfer')
     up.add_argument('-m', type=str, default='', metavar='message',
                     help='message description for the transfer')
     up.add_argument('-f', type=str, metavar='from', help='sender email')
     up.add_argument('-t', nargs='+', type=str, metavar='to',
                     help='recipient emails')
+    up.add_argument('-v', action='store_true',
+                    help='get verbose/debug logging')
     up.add_argument('files', nargs='+', type=str, metavar='file',
                     help='files to upload')
 
     args = ap.parse_args()
+
+    if args.v:
+        log.setLevel(logging.DEBUG)
 
     if args.action == 'download':
         if args.g:
@@ -381,9 +439,5 @@ if __name__ == '__main__':
         exit(0)
 
     if args.action == 'upload':
-        print(upload(args.files, args.m, args.f, args.t))
+        print(upload(args.files, args.n, args.m, args.f, args.t))
         exit(0)
-
-    # No action selected, print help message
-    ap.print_help()
-    exit(1)
