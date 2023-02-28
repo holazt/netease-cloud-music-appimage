@@ -1,28 +1,35 @@
+# doc, https://github.com/AppImageCommunity/pkg2appimage/blob/master/YML.md
+# reference, https://github.com/AppImageCommunity/pkg2appimage/blob/master/recipes/wps-office.yml
 app: netease-cloud-music
 binpatch: true
 
 ingredients:
   dist: apricot
-  sources: 
-    - deb http://mirrors.kernel.org/deepin/ apricot main non-free contrib
-  pretend:
-    # http://mirrors.kernel.org/deepin/pool/main/n/netease-cloud-music/
-    - netease-cloud-music 1.2.0.3-1
-    # http://mirrors.kernel.org/deepin/pool/main/c/cups/
-    - libcups2 2.3.0+deepin2.1-1+dde
-    # http://mirrors.kernel.org/deepin/pool/main/f/fcitx-qt5/
-    - fcitx-frontend-qt5 1.2.3.3-1
+  sources:
+    # altenative, deb http://mirrors.kernel.org/deepin/ apricot main non-free contrib
+    - deb https://community-packages.deepin.com/deepin/ apricot main non-free contrib
   packages:
-    - netease-cloud-music
+    # https://community-packages.deepin.com/deepin/pool/main/g/glibc/
+    - libc6(>= 2.23)
+    # https://community-packages.deepin.com/deepin/pool/main/c/cups/
     - libcups2
+    # https://community-packages.deepin.com/deepin/pool/main/f/fcitx-qt5/
     - fcitx-frontend-qt5
-  script:
-    # - VERSION=1.2.0.3
-    # - wget -c http://d1.music.126.net/dmusic/netease-cloud-music_1.2.1_amd64_ubuntu_20190428.deb --trust-server-names
-    # - wget -c http://mirrors.163.com/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.3-1_amd64.deb --trust-server-names # Faster mirror for China mainland
-    # - wget -c http://mirror.math.princeton.edu/pub/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.3-1_amd64.deb --trust-server-names
-    # - wget -c http://mirrors.kernel.org/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.3-1_amd64.deb --trust-server-names
-    # - echo $VERSION > VERSION
+    # https://community-packages.deepin.com/deepin/pool/main/n/netease-cloud-music/
+    - netease-cloud-music
+  exclude:
+    # Workaround for: /lib/x86_64-linux-gnu/libgio-2.0.so.0: undefined symbol: g_module_open_full
+    # https://github.com/AppImage/pkg2appimage/pull/500#issuecomment-997183221
+    # https://community-packages.deepin.com/deepin/pool/main/g/glib2.0/
+    - libglib2.0-0
+  # script:
+  #   # - VERSION=1.2.0.3
+  #   - wget -c http://d1.music.126.net/dmusic/netease-cloud-music_1.2.1_amd64_ubuntu_20190428.deb
+  #   - wget -c http://mirrors.163.com/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.3-1_amd64.deb # Faster mirror for China mainland
+  #   - wget -c http://mirror.math.princeton.edu/pub/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.3-1_amd64.deb
+  #   - wget -c http://mirrors.kernel.org/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.3-1_amd64.deb
+  #   - wget -c https://community-packages.deepin.com/deepin/pool/main/n/netease-cloud-music/netease-cloud-music_1.2.0.3-1_amd64.deb
+  #   - echo $VERSION > VERSION
 
 script: 
   # current directory: /worker/netease-cloud-music/netease-cloud-music.AppDir
