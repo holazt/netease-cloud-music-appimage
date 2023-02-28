@@ -1,5 +1,4 @@
 ## netease-cloud-music-appimage
-[![Actions](https://img.shields.io/github/workflow/status/ZetaoYang/netease-cloud-music-appimage/netease-cloud-music%20Appimage%20Build(x86_64)?label=Actions)](https://github.com/ZetaoYang/netease-cloud-music-appimage/actions)
 [![Total Downloads](https://img.shields.io/github/downloads/ZetaoYang/netease-cloud-music-appimage/total.svg?style=flat-square)](https://github.com/ZetaoYang/netease-cloud-music-appimage/releases)
 
 [netease-cloud-music](http://music.163.com) [AppImage](https://github.com/AppImage/AppImageKit) package, it supports **SQ** lossless audio(FLAC), and enjoy!
@@ -109,7 +108,7 @@ chmod u+x netease-cloud-music-hidpi.sh
 
 ### Note
 
-1. The package building method used in this project is [pkg2appimage](https://github.com/AppImage/pkg2appimage).
+1. The package building method used in this project is [pkg2appimage](https://github.com/AppImageCommunity/pkg2appimage).
 
 2. Solve the problem that netease cloud music for Linux can not play lossless audio format (FLAC) music. thanks to [EHfive's ncm.patch](https://gist.github.com/EHfive/bfc6098feb99a02bf59192618107d2ef#file-ncm-patch) and his [blog article](https://blog.eh5.me/fix-ncm-flac-playing/).
     > 
