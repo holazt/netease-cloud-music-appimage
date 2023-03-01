@@ -84,9 +84,13 @@ cp NetEase_Cloud_Music-*.AppImage /usr/local/bin/netease-cloud-music
 cat > netease-cloud-music-hidpi.sh <<EOF
 #! /bin/bash
 
-# for Qt applications, reset pixel ratio to 2.
-export QT_AUTO_SCREEN_SCALE_FACTOR=2
-# and force scale factor to 2.
+# doc, https://doc.qt.io/qt-5/highdpi.html#high-dpi-support-in-qt
+# QT_SCALE_FACTOR [numeric] defines a global scale factor for the whole application, including point-sized fonts.
+export QT_SCALE_FACTOR=1.75
+# Or
+# QT_AUTO_SCREEN_SCALE_FACTOR [boolean] enables automatic scaling, based on the monitor's pixel density. This won't change the size of point-sized fonts, since point is a physical measurement unit. Multiple screens may get different scale factors.
+# export QT_AUTO_SCREEN_SCALE_FACTOR=1
+
 
 if [ -e /usr/local/bin/netease-cloud-music ] ; then
 	exec /usr/local/bin/netease-cloud-music
