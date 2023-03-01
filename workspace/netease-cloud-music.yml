@@ -22,6 +22,7 @@ ingredients:
     # https://github.com/AppImage/pkg2appimage/pull/500#issuecomment-997183221
     # https://community-packages.deepin.com/deepin/pool/main/g/glib2.0/
     - libglib2.0-0
+    - libselinux1
   # script:
   #   # - VERSION=1.2.0.3
   #   - wget -c http://d1.music.126.net/dmusic/netease-cloud-music_1.2.1_amd64_ubuntu_20190428.deb
@@ -35,4 +36,3 @@ script:
   # current directory: /worker/netease-cloud-music/netease-cloud-music.AppDir
   - cp ../../workspace/netease-cloud-music.png .
   - cp ../../workspace/netease-cloud-music.desktop .
-  - rm -rf ./lib/x86_64-linux-gnu/libselinux.so.1

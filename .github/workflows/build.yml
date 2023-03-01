@@ -15,18 +15,26 @@ env:
 jobs:
   appimage-pack:
     name: build appimage on ${{ matrix.config.name }}-${{ matrix.config.arch }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         config:
+          # - {
+          #     name: ubuntu-22.04,
+          #     os: ubuntu,
+          #     symbol: jammy,
+          #     arch: amd64,
+          #     image_repo: ubuntu
+          #   }
           - {
-              name: ubuntu-22.04,
-              os: ubuntu,
-              symbol: jammy,
-              arch: amd64,
-              image_repo: ubuntu
-            }
+            # https://hub.docker.com/_/debian, sid-20230227
+            name: debian-sid,
+            os: debian,
+            symbol: sid,
+            arch: amd64,
+            image_repo: debian
+          }
     container:
       image: ${{ matrix.config.image_repo }}:${{ matrix.config.symbol }}
       options: -v ${{ github.workspace }}:/worker --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined
@@ -50,10 +58,10 @@ jobs:
           apt-get -y -qq update
           apt-get -y --no-install-recommends install \
             apt-transport-https \
+            ca-certificates \
             libcurl3-gnutls \
             libarchive13 \
             wget \
-            ca-cacert \
             appstream \
             desktop-file-utils \
             fuse \
@@ -71,6 +79,7 @@ jobs:
         run: |
           cd /worker
           wget -c https://github.com/AppImageCommunity/pkg2appimage/releases/download/continuous/pkg2appimage-1807-x86_64.AppImage -O pkg2appimage
+          cat /etc/apt/sources.list.d/debian.sources
       - name: Get appimagetool tool
         shell: bash
         run: |
@@ -89,10 +98,14 @@ jobs:
           mkdir -p /worker/build/dist
           cp /worker/out/*.AppImage /worker/build/dist
       - name: Prepare for vlc build
+        # sed -i -- 's/#deb-src/deb-src/g' /etc/apt/sources.list
+        # sed -i -- 's/# deb-src/deb-src/g' /etc/apt/sources.list
         shell: bash
         run: |
-          sed -i -- 's/#deb-src/deb-src/g' /etc/apt/sources.list
-          sed -i -- 's/# deb-src/deb-src/g' /etc/apt/sources.list
+          cat > /etc/apt/sources.list <<EOF
+          deb http://ftp.us.debian.org/debian/ sid main contrib non-free non-free-firmware
+          deb-src http://ftp.us.debian.org/debian/ sid main contrib non-free non-free-firmware
+          EOF
           apt-get -y -qq update
           apt-get -y build-dep vlc
           apt-get -y --no-install-recommends install \
