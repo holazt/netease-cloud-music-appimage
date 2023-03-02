@@ -104,13 +104,7 @@ chmod u+x netease-cloud-music-hidpi.sh
 ./netease-cloud-music-hidpi.sh
 ```
 
-### Deepin Mirror
-
-- http://mirrors.kernel.org/deepin/
-- http://mirror.math.princeton.edu/pub/deepin/
-- http://mirrors.163.com/deepin/
-
-### Note
+### Acknowledgement
 
 1. The package building method used in this project is [pkg2appimage](https://github.com/AppImageCommunity/pkg2appimage).
 
@@ -118,9 +112,11 @@ chmod u+x netease-cloud-music-hidpi.sh
     > 
       Patch VLC to make the Content-Type of flac network files/streams always be "audio/flac" to "fix" the problem that VLC fails to recognize the flac network files correctly due to the Content-Type of "audio/mpeg" obtained by NetEase Cloud Music for Linux. 
 
+### Known issues
+
+1. As of about October 2022, the "Personalized Recommendations" page is no longer available. Maybe it is due to the interface breaking changes on NetEase. [Report1](https://bbs.deepin.org/en/post/244704), [Report2](https://bbs.deepin.org/en/post/245872), [Report3](https://bbs.deepin.org/en/post/247853), [Report4](https://bbs.deepin.org/en/post/248072), [Report5](https://bbs.deepin.org/en/post/248136), [Report6](https://bbs.deepin.org/en/post/253115).
 
 ### Troubleshooting
-
 
 1. **Q**: netease-cloud-music: error while loading shared libraries: **libgtk-x11-2.0.so.0**: cannot open shared object file: No such file or directory
 
@@ -129,4 +125,3 @@ chmod u+x netease-cloud-music-hidpi.sh
 2. **Q**: netease-cloud-music: error while loading shared libraries: **libnsl.so.1**: cannot open shared object file: No such file or directory
 
    **A**: Try `dnf install libnsl` if you're using fedora.
-
