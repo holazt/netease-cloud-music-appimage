@@ -23,7 +23,7 @@ fi
 
 scripts_path=`dirname $0`
 
-python3 -m pip install -U -q requests
+python3 -m pip install --no-cache-dir requests
 
 RESPONSE=$(python3 ${scripts_path}/transferwee.py upload "${FILE}")
 
